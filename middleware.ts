@@ -1,21 +1,23 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Define which paths skip authentication validations completely
+// 1. Explicitly allow public public endpoints to pass through without session validation
 const isPublicRoute = createRouteMatcher([
-  "/api/generate-config(.*)", 
-  "/"
+  "/",
+  "/api/generate-config(.*)"
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
-    await auth.protect(); // Protects all other routes automatically
+    await auth.protect();
   }
 });
 
+// 2. Optimized compilation-safe matcher rules
 export const config = {
   matcher: [
-    // Skips internal Next.js static asset routes and images seamlessly
-    '/((?!_next|[^?]*\\.(?:html|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest))).*)',
-    '/(api|trpc)(.*)',
+    // Protects all operational routes except static files, assets, and internal chunks
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Always execute middleware on API or trpc route pipelines
+    "/(api|trpc)(.*)"
   ],
 };
