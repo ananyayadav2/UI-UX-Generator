@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/configs/db";
 import { Projects, ScreenConfig } from "@/configs/schema";
 
+// Force Next.js to deploy this endpoint to the Edge Runtime to lift the 10s timeout limit
 export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    // 1. Grab environment keys and validate immediately inside the edge worker block
+    // 1. Validate the OpenRouter key inside the Edge isolation environment
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       console.error("❌ CRITICAL CONFIG ERROR: OPENROUTER_API_KEY is undefined in Vercel.");
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
     }
 
-    // 2. Process secure external fetch connection over the Edge web pipeline
+    // 2. Fetch the multi-screen layout plan from OpenRouter using a native fetch stream
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       }),
     });
 
-    // 3. Gracefully intercept upstream proxy server rejections
+    // 3. Handle upstream proxy API errors gracefully
     if (!response.ok) {
       const errorResponseText = await response.text();
       console.error("❌ Upstream AI Proxy Server Error Output:", errorResponseText);
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
     const rawJsonText = aiPayload.choices[0].message.content;
     const cleanConfigData = JSON.parse(rawJsonText);
 
-    // Everything checks out perfectly! Return clean structured parameters back onto the canvas
+    // 4. Return clean structured parameters straight back to your canvas frontend layout
     return NextResponse.json(cleanConfigData);
 
   } catch (crashException: any) {
