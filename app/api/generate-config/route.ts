@@ -1,80 +1,53 @@
 import { NextResponse } from "next/server";
-import { db } from "@/configs/db";
-import { Projects, ScreenConfig } from "@/configs/schema";
 
-// Force Next.js to deploy this endpoint to the Edge Runtime to lift the 10s timeout limit
 export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    // 1. Validate the OpenRouter key inside the Edge isolation environment
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY; 
     if (!apiKey) {
-      console.error("❌ CRITICAL CONFIG ERROR: OPENROUTER_API_KEY is undefined in Vercel.");
-      return NextResponse.json(
-        { error: "OpenRouter configuration key missing on backend instance." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Gemini API key missing on backend." }, { status: 500 });
     }
 
     const body = await req.json();
-    const { prompt, deviceType } = body;
+    const { prompt } = body;
 
     if (!prompt) {
       return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
     }
 
-    // 2. Fetch the multi-screen layout plan from OpenRouter using a native fetch stream
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Connect directly to Google's free developer endpoint
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert SaaS software platform product architect. Analyze the user's software prompt and generate an MVP board. Return ONLY a raw JSON object matching the requested structure.",
-          },
-          {
-            role: "user",
-            content: `Prompt: ${prompt}`,
-          },
-        ],
+        contents: [{
+          parts: [{
+            text: `You are an expert SaaS platform product architect. Analyze this prompt and generate an MVP board. Return ONLY a raw JSON object matching your standard layout structure: ${prompt}`
+          }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       }),
     });
 
-    // 3. Handle upstream proxy API errors gracefully
     if (!response.ok) {
-      const errorResponseText = await response.text();
-      console.error("❌ Upstream AI Proxy Server Error Output:", errorResponseText);
-      return NextResponse.json(
-        { error: "The AI generation engine rejected the payload parameters.", details: errorResponseText },
-        { status: response.status }
-      );
+      const errText = await response.text();
+      console.error("❌ Google AI Studio Error:", errText);
+      return NextResponse.json({ error: "Google AI engine rejected request.", details: errText }, { status: response.status });
     }
 
     const aiPayload = await response.json();
-    
-    if (!aiPayload.choices || aiPayload.choices.length === 0) {
-      console.error("❌ Edge Function received an empty array response from model.");
-      return NextResponse.json({ error: "Empty completion response matrix." }, { status: 500 });
-    }
-
-    const rawJsonText = aiPayload.choices[0].message.content;
+    const rawJsonText = aiPayload.candidates[0].content.parts[0].text;
     const cleanConfigData = JSON.parse(rawJsonText);
 
-    // 4. Return clean structured parameters straight back to your canvas frontend layout
     return NextResponse.json(cleanConfigData);
 
   } catch (crashException: any) {
-    console.error("❌ Edge Runtime Exception Caught Logged Successfully:", crashException);
-    return NextResponse.json(
-      { error: "Internal Server Processing Exception", details: crashException.message || crashException },
-      { status: 500 }
-    );
+    console.error("❌ Runtime Exception:", crashException);
+    return NextResponse.json({ error: "Internal Server Error", details: crashException.message }, { status: 500 });
   }
 }
