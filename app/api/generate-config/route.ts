@@ -4,7 +4,7 @@ export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    // Keeping the name OPENROUTER_API_KEY so you don't have to change your Vercel settings
+    // Keeping the name OPENROUTER_API_KEY so your Vercel variables stay exactly as they are
     const apiKey = process.env.OPENROUTER_API_KEY; 
     if (!apiKey) {
       return NextResponse.json({ error: "Gemini API key missing on backend." }, { status: 500 });
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
     }
 
-    // Stable production endpoint path for Google AI Studio
+    // Stable Google production endpoint path structure
     const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
           }]
         }],
         generationConfig: {
-          responseMimeType: "application/json"
+          response_mime_type: "application/json"
         }
       }),
     });
