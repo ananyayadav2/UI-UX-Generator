@@ -1,113 +1,148 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from "react";
+
+interface ScreenBlueprint {
+  screenId: string;
+  name: string;
+  purpose: string;
+  layoutDescription: string;
+}
+
+interface ProjectConfig {
+  projectName: string;
+  projectVisualDescription: string;
+  screens: ScreenBlueprint[];
+}
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
+  const [deviceType, setDeviceType] = useState("mobile"); // Defaulting to mobile preview cards
   const [loading, setLoading] = useState(false);
+  const [projectData, setProjectData] = useState<ProjectConfig | null>(null);
 
-  const handleGenerate = async () => {
-    if (!prompt) return;
+  const handleCreateProjectBlueprint = async () => {
+    if (!prompt.trim()) return;
     
     setLoading(true);
+    setProjectData(null);
+
     try {
-      const response = await fetch("/api/generate", {
+      const response = await fetch("/api/generate-config", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, deviceType }),
       });
-      
+
+      if (!response.ok) throw new Error("Failed to plan project screens");
+
       const data = await response.json();
-      setGeneratedCode(data.code);
+      setProjectData(data);
     } catch (error) {
-      console.error("Error generating UI:", error);
+      console.error("Execution error:", error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      minHeight: '80vh', 
-      padding: '20px',
-      textAlign: 'center' 
-    }}>
-      <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '10px' }}>
-        Build Your UI with <span style={{ color: '#3b82f6' }}>AI</span>
-      </h1>
-      <p style={{ color: '#666', marginBottom: '30px', maxWidth: '600px' }}>
-        Generate high-quality, modern React components in seconds using the power of Artificial Intelligence.
-      </p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
+   
+      
+      {/* Hero Header Area */}
+      <div className="max-w-4xl mx-auto text-center mt-16 px-4">
+        <h1 className="text-5xl font-bold tracking-tight">
+          Build Your UI with{" "}
+          <span className="bg-gradient-to-r from-blue-600 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
+            AI
+          </span>
+        </h1>
+        <p className="mt-4 text-slate-500 text-lg">
+          Generate complete, multi-screen functional layout blueprints in seconds.
+        </p>
 
-      <div style={{ width: '100%', maxWidth: '500px', marginBottom: '20px' }}>
-        <input 
-          type="text"
-          placeholder="Describe the UI you want (e.g., a blue login card)"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px',
-            borderRadius: '8px',
-            border: '1px solid #ccc',
-            color: 'black',
-            marginBottom: '10px'
-          }}
-        />
-        
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button 
-            onClick={handleGenerate}
+        {/* Workspace Controls Input Frame Card */}
+        <div className="mt-10 p-6 bg-white border shadow-sm rounded-2xl text-left max-w-2xl mx-auto space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-slate-700 block mb-2">
+              Select Target Form Factor Device
+            </label>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDeviceType("mobile")}
+                className={`flex-1 py-2 px-4 border rounded-xl font-medium transition ${
+                  deviceType === "mobile" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                📱 Mobile Screen Map
+              </button>
+              <button
+                onClick={() => setDeviceType("desktop")}
+                className={`flex-1 py-2 px-4 border rounded-xl font-medium transition ${
+                  deviceType === "desktop" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                💻 Desktop Website Layout
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-slate-700 block mb-2">
+              Describe your platform app idea
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g., A cryptocurrency swapping dashboard with a dark neon theme..."
+              rows={3}
+              className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm resize-none"
+            />
+          </div>
+
+          <button
+            onClick={handleCreateProjectBlueprint}
             disabled={loading}
-            style={{ 
-              padding: '12px 24px', 
-              backgroundColor: 'black', 
-              color: 'white', 
-              borderRadius: '8px', 
-              border: 'none', 
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold'
-            }}
+            className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md transition disabled:opacity-50"
           >
-            {loading ? "Generating..." : "Start Generating"}
-          </button>
-          <button style={{ 
-            padding: '12px 24px', 
-            backgroundColor: 'white', 
-            color: 'black', 
-            borderRadius: '8px', 
-            border: '1px solid #ccc',
-            fontWeight: 'bold'
-          }}>
-            View Gallery
+            {loading ? "AI is Mapping Screen Architecture..." : "Start Blueprinting MVP Layout"}
           </button>
         </div>
       </div>
 
-      {generatedCode && (
-        <div style={{ 
-          marginTop: '40px', 
-          width: '100%', 
-          maxWidth: '800px', 
-          textAlign: 'left',
-          backgroundColor: '#f4f4f4',
-          padding: '20px',
-          borderRadius: '8px',
-          overflowX: 'auto'
-        }}>
-          <h3 style={{ marginBottom: '10px' }}>Generated Code:</h3>
-          <pre style={{ fontSize: '14px' }}>
-            <code>{generatedCode}</code>
-          </pre>
+      {/* Blueprint Content Output Display Grid */}
+      {projectData && (
+        <div className="max-w-5xl mx-auto mt-16 px-4 space-y-8">
+          <div className="border-b pb-4">
+            <h2 className="text-3xl font-bold text-slate-800">{projectData.projectName}</h2>
+            <p className="text-slate-500 mt-2 text-sm italic">
+              <strong>Visual Guide:</strong> {projectData.projectVisualDescription}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {projectData.screens.map((screen) => (
+              <div key={screen.screenId} className="bg-white p-5 border shadow-sm rounded-xl flex flex-col justify-between">
+                <div>
+                  <div className="w-8 h-8 bg-purple-100 text-purple-700 rounded-lg flex items-center justify-center font-bold text-sm mb-3">
+                    🗺️
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">{screen.name}</h3>
+                  <p className="text-xs font-semibold uppercase text-purple-600 mt-1 tracking-wider">
+                    {screen.purpose}
+                  </p>
+                  <p className="text-slate-600 text-xs mt-3 leading-relaxed">
+                    {screen.layoutDescription}
+                  </p>
+                </div>
+                <button className="mt-5 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition">
+                  Ready to Render Code
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
