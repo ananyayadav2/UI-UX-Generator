@@ -4,13 +4,9 @@ import Header from './components/Header'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>
-          <Header />
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+// Remove <ClerkProvider> from the top and </ClerkProvider> from the bottom
+<html lang="en">
+  <body>{children}</body>
+</html>
   )
 }
