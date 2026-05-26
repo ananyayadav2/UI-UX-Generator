@@ -1,85 +1,79 @@
 import { NextResponse } from "next/server";
-import { db } from "@/configs/db"; 
+import { db } from "@/configs/db";
 import { Projects, ScreenConfig } from "@/configs/schema";
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    const { prompt, deviceType } = await req.json();
+    // 1. Grab environment keys and validate immediately inside the edge worker block
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      console.error("❌ CRITICAL CONFIG ERROR: OPENROUTER_API_KEY is undefined in Vercel.");
+      return NextResponse.json(
+        { error: "OpenRouter configuration key missing on backend instance." },
+        { status: 500 }
+      );
+    }
 
-    // 1. Fetch the multi-screen layout plan from OpenRouter
+    const body = await req.json();
+    const { prompt, deviceType } = body;
+
+    if (!prompt) {
+      return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
+    }
+
+    // 2. Process secure external fetch connection over the Edge web pipeline
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "google/gemini-2.0-flash-001",
-        response_format: { type: "json_object" }, 
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
-            content: `You are an expert SaaS software platform product architect. Analyze the user's software prompt and generate an MVP configuration plan containing exactly 3 core application screen components structures.
-            Return ONLY a raw JSON object matching this exact structure:
-            {
-              "projectName": "Name of the software platform",
-              "projectVisualDescription": "Global style details regarding theme look and feel templates color variables guidelines",
-              "screens": [
-                {
-                  "screenId": "unique-lowercase-slug-id-string",
-                  "name": "Screen Component Name Layout",
-                  "purpose": "What this screen panel interface achieves functionally",
-                  "layoutDescription": "Detailed visual layout blueprint instructing where items sit spatial-wise"
-                }
-              ]
-            }`
+            content: "You are an expert SaaS software platform product architect. Analyze the user's software prompt and generate an MVP board. Return ONLY a raw JSON object matching the requested structure.",
           },
-          { role: "user", content: `Platform Prompt Idea: ${prompt}` }
-        ]
-      })
+          {
+            role: "user",
+            content: `Prompt: ${prompt}`,
+          },
+        ],
+      }),
     });
 
-    const data = await response.json();
-    if (!data.choices || data.choices.length === 0) {
-      return NextResponse.json({ error: "AI failed to respond" }, { status: 500 });
+    // 3. Gracefully intercept upstream proxy server rejections
+    if (!response.ok) {
+      const errorResponseText = await response.text();
+      console.error("❌ Upstream AI Proxy Server Error Output:", errorResponseText);
+      return NextResponse.json(
+        { error: "The AI generation engine rejected the payload parameters.", details: errorResponseText },
+        { status: response.status }
+      );
     }
 
-    const configData = JSON.parse(data.choices[0].message.content);
-    const generatedProjectId = "proj_" + Math.random().toString(36).substring(2, 11);
-
-    // 2. Insert master metadata row into your custom 'Projects' table
-    await db.insert(Projects).values({
-      projectId: generatedProjectId,
-      name: configData.projectName || configData.name || "Untitled Blueprint Platform",
-      device: deviceType || "mobile",
-      visualDesc: configData.projectVisualDescription || configData.visualDesc || "Minimalist aesthetic styling guidelines", 
-      userId: "bypass_user_mode" 
-    });
-
-    // 3. Batch insert individual screens into your custom 'ScreenConfig' table
-    if (configData.screens && configData.screens.length > 0) {
-      const operationsArray = configData.screens.map((screen: any, idx: number) => ({
-        projectId: generatedProjectId,
-        screenId: idx + 1, 
-        screenName: screen.name || "Untitled Screen Container",
-        purpose: screen.purpose || "Functional interface component module",
-        screenDesc: screen.layoutDescription || screen.screenDesc || "Layout structural guidelines blueprint",
-        code: null
-      }));
-
-      await db.insert(ScreenConfig).values(operationsArray);
+    const aiPayload = await response.json();
+    
+    if (!aiPayload.choices || aiPayload.choices.length === 0) {
+      console.error("❌ Edge Function received an empty array response from model.");
+      return NextResponse.json({ error: "Empty completion response matrix." }, { status: 500 });
     }
 
-    // Return payload context back to client application state
-    return NextResponse.json({
-      projectId: generatedProjectId,
-      ...configData
-    });
+    const rawJsonText = aiPayload.choices[0].message.content;
+    const cleanConfigData = JSON.parse(rawJsonText);
 
-  } catch (error) {
-    console.error("Layout pipeline backend error:", error);
-    return NextResponse.json({ error: "Internal Database Server Error" }, { status: 500 });
+    // Everything checks out perfectly! Return clean structured parameters back onto the canvas
+    return NextResponse.json(cleanConfigData);
+
+  } catch (crashException: any) {
+    console.error("❌ Edge Runtime Exception Caught Logged Successfully:", crashException);
+    return NextResponse.json(
+      { error: "Internal Server Processing Exception", details: crashException.message || crashException },
+      { status: 500 }
+    );
   }
 }
