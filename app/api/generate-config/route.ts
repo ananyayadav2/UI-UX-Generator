@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/configs/db"; 
 import { Projects, ScreenConfig } from "@/configs/schema";
 
+export const runtime = 'edge';
+
 export async function POST(req: Request) {
   try {
     const { prompt, deviceType } = await req.json();
