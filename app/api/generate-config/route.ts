@@ -16,8 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
     }
 
-    // The absolute standard, text-only generation link for stable production access
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // Rock-solid stable universal path 
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an expert SaaS platform product architect. Analyze this prompt and generate an MVP board layout config. Return ONLY a raw JSON object matching your standard layout structure, do not include markdown block wrappers: ${prompt}`
+            text: `You are an expert SaaS platform product architect. Analyze this prompt and generate an MVP board layout config. Return ONLY a raw JSON object matching your standard layout structure, do not include markdown block ticks: ${prompt}`
           }]
         }]
       }),
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     const aiPayload = await response.json();
     let rawJsonText = aiPayload.candidates[0].content.parts[0].text;
     
-    // Safety string sanitization
+    // Quick cleanup
     rawJsonText = rawJsonText.replace(/```json/g, "").replace(/```/g, "").trim();
     const cleanConfigData = JSON.parse(rawJsonText);
 
