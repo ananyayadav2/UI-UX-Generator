@@ -4,7 +4,6 @@ export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    // Keeping the name OPENROUTER_API_KEY so your Vercel configurations remain unchanged
     const apiKey = process.env.OPENROUTER_API_KEY; 
     if (!apiKey) {
       return NextResponse.json({ error: "Gemini API key missing on backend." }, { status: 500 });
@@ -17,8 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing prompt value string." }, { status: 400 });
     }
 
-    // Direct fetch to stable Google production endpoint without any beta config blocks
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Explicitly targeting the absolute stable production model build string
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an expert SaaS platform product architect. Analyze this prompt and generate an MVP board layout config. Return ONLY a raw JSON object matching your standard layout structure, do not include markdown code block syntax formatting wrappers: ${prompt}`
+            text: `You are an expert SaaS platform product architect. Analyze this prompt and generate an MVP board layout config. Return ONLY a raw JSON object matching your standard layout structure, do not include markdown block ticks: ${prompt}`
           }]
         }]
       }),
@@ -41,7 +40,6 @@ export async function POST(req: Request) {
     const aiPayload = await response.json();
     let rawJsonText = aiPayload.candidates[0].content.parts[0].text;
     
-    // Clean out any unintended markdown delimiters before parsing the clean JSON
     rawJsonText = rawJsonText.replace(/```json/g, "").replace(/```/g, "").trim();
     const cleanConfigData = JSON.parse(rawJsonText);
 
